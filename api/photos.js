@@ -21,16 +21,20 @@ export default async function handler(req, res) {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range,
-      valueRenderOption: 'FORMULA' // Tambahkan opsi ini
+      valueRenderOption: 'FORMULA'
     });
+
+    console.log('Response from Google Sheets:', response.data);
 
     const rows = response.data.values;
     if (!rows || rows.length === 0) {
+      console.log('No rows found, returning empty array.');
       return res.status(200).json([]);
     }
 
     const properties = rows.map(row => {
       const rawFotoCell = row[3];
+      console.log('Processing cell:', rawFotoCell);
       const match = rawFotoCell.match(/=IMAGE\("([^"]+)"\)/);
 
       let finalFotoUrl = null;
