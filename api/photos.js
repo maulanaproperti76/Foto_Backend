@@ -4,7 +4,6 @@ export default async function handler(req, res) {
   try {
     const GOOGLE_CREDENTIALS = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ';
-    const BOT_TOKEN = process.env.BOT_TOKEN;
 
     const jwtClient = new google.auth.JWT(
       GOOGLE_CREDENTIALS.client_email,
@@ -24,7 +23,7 @@ export default async function handler(req, res) {
       valueRenderOption: 'FORMULA'
     });
 
-    console.log('Response from Google Sheets:', response.data);
+    console.log('Response from Google Sheets:', JSON.stringify(response.data, null, 2));
 
     const rows = response.data.values;
     if (!rows || rows.length === 0) {
@@ -33,15 +32,17 @@ export default async function handler(req, res) {
     }
 
     const properties = rows.map(row => {
-      const rawFotoCell = row[3];
-      console.log('Processing cell:', rawFotoCell);
+      // Kolom untuk foto berada di indeks 3.
+      // Jika kolom ini berisi deskripsi, Anda harus memindahkan data foto ke kolom yang benar di spreadsheet.
+      const rawFotoCell = row[3] || '';
+      console.log('Processing cell for photo:', rawFotoCell);
       const match = rawFotoCell.match(/=IMAGE\("([^"]+)"\)/);
 
       let finalFotoUrl = null;
       if (match && match[1]) {
         finalFotoUrl = match[1];
       }
-
+      
       return {
         type: row[0],
         harga: row[1],
