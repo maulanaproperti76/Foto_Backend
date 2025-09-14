@@ -2,16 +2,26 @@ import { google } from 'googleapis';
 
 export default async function handler(req, res) {
   try {
-    const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-    const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ'; // Ganti dengan ID Spreadsheet Anda
+    const GOOGLE_CREDENTIALS = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ';
     const BOT_TOKEN = process.env.BOT_TOKEN;
 
-    const sheets = google.sheets({ version: 'v4', auth: GOOGLE_API_KEY });
-    
-    const range = 'Sheet1!A2:G'; // Sesuaikan jika range Anda berbeda
+    const jwtClient = new google.auth.JWT(
+      GOOGLE_CREDENTIALS.client_email,
+      null,
+      GOOGLE_CREDENTIALS.private_key,
+      ['https://www.googleapis.com/auth/spreadsheets.readonly']
+    );
+
+    await jwtClient.authorize();
+
+    const sheets = google.sheets({ version: 'v4', auth: jwtClient });
+
+    const range = 'Sheet1!A2:E';
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range,
+      valueRenderOption: 'FORMULA' // Tambahkan opsi ini
     });
 
     const rows = response.data.values;
@@ -20,15 +30,14 @@ export default async function handler(req, res) {
     }
 
     const properties = rows.map(row => {
-      // Dapatkan URL dari dalam formula =IMAGE()
-      const rawFotoUrl = row[3];
-      const match = rawFotoUrl.match(/\"(https?:\/\/[^\"]+)\"/);
-      
+      const rawFotoCell = row[3];
+      const match = rawFotoCell.match(/=IMAGE\("([^"]+)"\)/);
+
       let finalFotoUrl = null;
       if (match && match[1]) {
-        finalFotoUrl = match[1].replace('bot', 'bot' + BOT_TOKEN);
+        finalFotoUrl = match[1];
       }
-      
+
       return {
         type: row[0],
         harga: row[1],
