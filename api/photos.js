@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 export default async function handler(req, res) {
   try {
     const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-    const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ'; // Ganti dengan ID Spreadsheet Anda
+    const SPREADSHEET_ID = '1jAEUzLcvuMGaKlpj4n8_oea1p1SQ4P758GJSDyYQF1M'; // Ganti dengan ID Spreadsheet Anda
     const BOT_TOKEN = process.env.BOT_TOKEN;
 
     const sheets = google.sheets({ version: 'v4', auth: GOOGLE_API_KEY });
