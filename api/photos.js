@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: 'v4', auth: GOOGLE_API_KEY });
     
-    const range = 'Sheet1!A2:E'; // Sesuaikan jika range Anda berbeda
+    const range = 'Sheet1!A2:G'; // Sesuaikan jika range Anda berbeda
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range,
