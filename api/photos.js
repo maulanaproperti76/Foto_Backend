@@ -1,41 +1,47 @@
-import fetch from 'node-fetch';
+import { google } from 'googleapis';
 
-export default async function handler(request, response) {
-  // --- BAGIAN INI SANGAT PENTING ---
-  // API Key Telegram disimpan sebagai variabel lingkungan (environment variable)
-  // di Vercel, bukan di dalam kode ini.
-  const BOT_TOKEN = process.env.BOT_TOKEN;
-
-  // Ganti dengan ID Spreadsheet Anda
-  const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ';
-  // Ganti dengan Google Sheets API Key Anda
-  const GOOGLE_API_KEY = 'AIzaSyBkz_SNQpDZuDJfUZ9AxbBm1GagK5igXug'; 
-
-  // URL API Google Sheets untuk mengambil data dari Sheet1
-  const googleSheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Sheet1!A:A?key=${GOOGLE_API_KEY}`;
-
+export default async function handler(req, res) {
   try {
-    const sheetResponse = await fetch(googleSheetUrl);
-    const sheetData = await sheetResponse.json();
+    const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+    const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ'; // Ganti dengan ID Spreadsheet Anda
+    const BOT_TOKEN = process.env.BOT_TOKEN;
 
-    const photoUrls = [];
-    if (sheetData.values && sheetData.values.length > 0) {
-      sheetData.values.forEach(row => {
-        const cellData = row[0];
-        if (cellData.startsWith('=IMAGE("')) {
-          const match = cellData.match(/"([^"]*)"/);
-          if (match && match.length > 1) {
-            // Pastikan URL memiliki BOT_TOKEN yang benar
-            const telegramUrl = match[1].replace('bot[0-9]+:[a-zA-Z0-9_-]+', `bot${BOT_TOKEN}`);
-            photoUrls.push(telegramUrl);
-          }
-        }
-      });
+    const sheets = google.sheets({ version: 'v4', auth: GOOGLE_API_KEY });
+    
+    const range = 'Sheet1!A2:E'; // Sesuaikan jika range Anda berbeda
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range,
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length === 0) {
+      return res.status(200).json([]);
     }
 
-    response.status(200).json({ photos: photoUrls });
+    const properties = rows.map(row => {
+      // Dapatkan URL dari dalam formula =IMAGE()
+      const rawFotoUrl = row[3];
+      const match = rawFotoUrl.match(/\"(https?:\/\/[^\"]+)\"/);
+      
+      let finalFotoUrl = null;
+      if (match && match[1]) {
+        finalFotoUrl = match[1].replace('bot', 'bot' + BOT_TOKEN);
+      }
+      
+      return {
+        type: row[0],
+        harga: row[1],
+        alamat: row[2],
+        foto: finalFotoUrl,
+        link: row[4]
+      };
+    });
+
+    res.status(200).json(properties);
+
   } catch (error) {
-    console.error(error);
-    response.status(500).json({ error: 'Gagal mengambil data dari Google Sheets.' });
+    console.error('Error fetching data:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 }
