@@ -4,7 +4,6 @@ export default async function handler(req, res) {
   try {
     const GOOGLE_CREDENTIALS = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ';
-    const BOT_TOKEN = process.env.BOT_TOKEN;
 
     const jwtClient = new google.auth.JWT(
       GOOGLE_CREDENTIALS.client_email,
@@ -24,18 +23,14 @@ export default async function handler(req, res) {
       valueRenderOption: 'FORMULA'
     });
 
-    console.log('Response from Google Sheets:', JSON.stringify(response.data, null, 2));
-
     const rows = response.data.values;
     if (!rows || rows.length === 0) {
-      console.log('No rows found, returning empty array.');
+      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
       return res.status(200).json([]);
     }
 
     const properties = rows.map(row => {
-      // Mengubah indeks foto dari 3 ke 5 sesuai dengan log
       const rawFotoCell = row[5] || '';
-      console.log('Processing cell for photo at index 5:', rawFotoCell);
       const match = rawFotoCell.match(/=IMAGE\("([^"]+)"\)/);
 
       let finalFotoUrl = null;
@@ -52,6 +47,8 @@ export default async function handler(req, res) {
       };
     });
 
+    // Menambahkan header cache ke respons
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     res.status(200).json(properties);
 
   } catch (error) {
