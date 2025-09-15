@@ -16,9 +16,10 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: 'v4', auth: jwtClient });
 
+    // Mengambil data dari kolom A sampai J (indeks 0 sampai 9)
     const range = 'Sheet1!A2:J';
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEID_ID,
       range,
       valueRenderOption: 'FORMULA'
     });
@@ -29,23 +30,43 @@ export default async function handler(req, res) {
       return res.status(200).json([]);
     }
 
-    const properties = rows.map(row => {
-      const rawFotoCell = row[5] || '';
-      const match = rawFotoCell.match(/=IMAGE\("([^"]+)"\)/);
-
+    // Mengelompokkan properti berdasarkan 'nomer' (kolom A, indeks 0)
+    const groupedProperties = {};
+    rows.forEach(row => {
+      const uniqueId = row[0]; // Kolom A (nomer) sebagai ID unik
+      const rawFotoCell = row[7]; // Kolom H (Foto)
+      
+      // Pastikan rawFotoCell adalah string sebelum memanggil .match()
+      const rawFotoCellString = typeof rawFotoCell === 'string' ? rawFotoCell : '';
+      const match = rawFotoCellString.match(/=IMAGE\("([^"]+)"\)/);
       let finalFotoUrl = null;
       if (match && match[1]) {
         finalFotoUrl = match[1];
       }
-      
-      return {
-        type: row[0],
-        harga: row[1],
-        alamat: row[2],
-        foto: finalFotoUrl,
-        link: row[4]
-      };
+
+      if (uniqueId) {
+        if (!groupedProperties[uniqueId]) {
+          // Inisialisasi properti baru jika ID belum ada
+          groupedProperties[uniqueId] = {
+            type: row[1],
+            harga: row[2],
+            alamat: row[3],
+            deskripsi: row[4],
+            kamar: row[5],
+            kamar_mandi: row[6],
+            link: row[7],
+            foto: []
+          };
+        }
+        // Tambahkan URL foto ke array yang sudah ada
+        if (finalFotoUrl) {
+          groupedProperties[uniqueId].foto.push(finalFotoUrl);
+        }
+      }
     });
+
+    // Mengubah objek menjadi array final untuk respons
+    const properties = Object.values(groupedProperties);
 
     // Menambahkan header cache ke respons
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
