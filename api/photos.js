@@ -65,12 +65,20 @@ export default async function handler(req, res) {
         }
 
         if (finalFotoUrl) {
+          // DEBUG LOG: cek foto yang masuk
+          console.log("Property ID:", uniqueId, "Foto ditemukan:", finalFotoUrl);
           groupedProperties[uniqueId].foto.push(finalFotoUrl);
         }
       }
     });
 
     const properties = Object.values(groupedProperties);
+
+    // DEBUG LOG: cek hasil akhir properti sebelum dikirim
+    console.log("=== Hasil groupedProperties ===");
+    properties.forEach(p => {
+      console.log("ID:", p.id, "| Jumlah Foto:", p.foto.length, "| Foto:", p.foto);
+    });
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     res.status(200).json(properties);
