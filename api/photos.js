@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: 'v4', auth: jwtClient });
 
-    const range = 'Sheet1!A2:G';
+    const range = 'Sheet1!A2:J';
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range,
