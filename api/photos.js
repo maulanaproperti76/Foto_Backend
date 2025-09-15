@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     // Mengambil data dari kolom A sampai J (indeks 0 sampai 9)
     const range = 'Sheet1!A2:J';
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEID_ID,
+      spreadsheetId: SPREADSHEET_ID, // Kesalahan ketik sudah diperbaiki di sini
       range,
       valueRenderOption: 'FORMULA'
     });
