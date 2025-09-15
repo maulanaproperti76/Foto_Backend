@@ -16,8 +16,8 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: 'v4', auth: jwtClient });
 
-    // ambil semua kolom sampai H (kolom foto)
-    const range = 'Sheet1!A2:H';
+    // Ambil semua kolom sampai J (0–9)
+    const range = 'Sheet1!A2:J';
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range,
@@ -29,44 +29,50 @@ export default async function handler(req, res) {
       return res.status(200).json([]);
     }
 
+    // Grouping properti berdasarkan nomor (kolom A / index 0)
     const groupedProperties = {};
-
     rows.forEach(row => {
-      const uniqueId = row[0]; // kolom A = nomor unik properti
+      const uniqueId = row[0]; // kolom A (no)
       const type = row[1];
       const harga = row[2];
       const alamat = row[3];
-      const link = row[4];
-      const rawFotoCell = row[7] || ''; // kolom H untuk foto
+      const deskripsi = row[4];
+      const kamar = row[5];
+      const kamar_mandi = row[6];
+      const link = row[7];
 
-      // ambil URL dari formula =IMAGE("...")
-      let finalFotoUrl = null;
+      // Kolom I (index 8) = foto
+      const rawFotoCell = row[8] || '';
       const match = rawFotoCell.match(/=IMAGE\("([^"]+)"\)/);
+      let finalFotoUrl = null;
       if (match && match[1]) {
         finalFotoUrl = match[1];
       }
 
-      if (!groupedProperties[uniqueId]) {
-        // baris pertama → simpan detail + array foto kosong
-        groupedProperties[uniqueId] = {
-          id: uniqueId,
-          type,
-          harga,
-          alamat,
-          link,
-          foto: []
-        };
-      }
+      if (uniqueId) {
+        if (!groupedProperties[uniqueId]) {
+          groupedProperties[uniqueId] = {
+            id: uniqueId,
+            type,
+            harga,
+            alamat,
+            deskripsi,
+            kamar,
+            kamar_mandi,
+            link,
+            foto: []
+          };
+        }
 
-      // tiap baris dengan ID sama → tambahkan foto
-      if (finalFotoUrl) {
-        groupedProperties[uniqueId].foto.push(finalFotoUrl);
+        if (finalFotoUrl) {
+          groupedProperties[uniqueId].foto.push(finalFotoUrl);
+        }
       }
     });
 
-    // ubah object jadi array
     const properties = Object.values(groupedProperties);
 
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     res.status(200).json(properties);
 
   } catch (error) {
