@@ -46,7 +46,6 @@ export default async function handler(req, res) {
 
       if (uniqueId) {
         if (!groupedProperties[uniqueId]) {
-          // Inisialisasi properti baru jika ID belum ada
           groupedProperties[uniqueId] = {
             type: row[1],
             harga: row[2],
@@ -54,16 +53,17 @@ export default async function handler(req, res) {
             deskripsi: row[4],
             kamar: row[5],
             kamar_mandi: row[6],
-            link: row[7],
-            foto: []
+            link: row[8], // link property (Google Maps / marketplace)
+            foto: finalFotoUrl ? [finalFotoUrl] : [] // langsung isi kalau ada
           };
-        }
-        // Tambahkan URL foto ke array yang sudah ada
-        if (finalFotoUrl) {
-          groupedProperties[uniqueId].foto.push(finalFotoUrl);
+        } else {
+          // kalau properti sudah ada → tambahkan foto baru
+          if (finalFotoUrl) {
+            groupedProperties[uniqueId].foto.push(finalFotoUrl);
+          }
         }
       }
-    });
+
 
     // Mengubah objek menjadi array final untuk respons
     const properties = Object.values(groupedProperties);
