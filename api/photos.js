@@ -16,10 +16,10 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: 'v4', auth: jwtClient });
 
-    // Mengambil data dari kolom A sampai J (indeks 0 sampai 9)
+    // ambil data kolom A sampai J
     const range = 'Sheet1!A2:J';
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID, // Kesalahan ketik sudah diperbaiki di sini
+      spreadsheetId: SPREADSHEET_ID,
       range,
       valueRenderOption: 'FORMULA'
     });
@@ -30,45 +30,38 @@ export default async function handler(req, res) {
       return res.status(200).json([]);
     }
 
-    // Mengelompokkan properti berdasarkan 'nomer' (kolom A, indeks 0)
+    // Group properti berdasarkan kolom A (nomer)
     const groupedProperties = {};
     rows.forEach(row => {
-      const uniqueId = row[0]; // Kolom A (nomer) sebagai ID unik
-      const rawFotoCell = row[7]; // Kolom H (Foto)
-      
-      // Pastikan rawFotoCell adalah string sebelum memanggil .match()
-      const rawFotoCellString = typeof rawFotoCell === 'string' ? rawFotoCell : '';
+      const uniqueId = row[0]; // nomer
+      const rawFotoCellString = typeof row[7] === 'string' ? row[7] : '';
+
+      // ambil URL dari =IMAGE("...")
       const match = rawFotoCellString.match(/=IMAGE\("([^"]+)"\)/);
-      let finalFotoUrl = null;
-      if (match && match[1]) {
-        finalFotoUrl = match[1];
-      }
+      const finalFotoUrl = match && match[1] ? match[1] : null;
 
       if (uniqueId) {
         if (!groupedProperties[uniqueId]) {
           groupedProperties[uniqueId] = {
-            type: row[1],
-            harga: row[2],
-            alamat: row[3],
-            deskripsi: row[4],
-            kamar: row[5],
-            kamar_mandi: row[6],
-            link: row[8], // link property (Google Maps / marketplace)
-            foto: finalFotoUrl ? [finalFotoUrl] : [] // langsung isi kalau ada
+            type: row[1] || '',
+            harga: row[2] || '',
+            alamat: row[3] || '',
+            deskripsi: row[4] || '',
+            kamar: row[5] || '',
+            kamar_mandi: row[6] || '',
+            link: row[8] || '', // kolom I untuk link
+            foto: finalFotoUrl ? [finalFotoUrl] : []
           };
         } else {
-          // kalau properti sudah ada → tambahkan foto baru
           if (finalFotoUrl) {
             groupedProperties[uniqueId].foto.push(finalFotoUrl);
           }
         }
       }
+    });
 
-
-    // Mengubah objek menjadi array final untuk respons
     const properties = Object.values(groupedProperties);
 
-    // Menambahkan header cache ke respons
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     res.status(200).json(properties);
 
