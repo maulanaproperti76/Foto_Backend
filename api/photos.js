@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: 'v4', auth: jwtClient });
 
-    // Ambil semua kolom sampai J (0–9)
+    // ambil semua kolom sampai J (foto di I index=8, date di J index=9)
     const range = 'Sheet1!A2:J';
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -29,10 +29,9 @@ export default async function handler(req, res) {
       return res.status(200).json([]);
     }
 
-    // Grouping properti berdasarkan nomor (kolom A / index 0)
     const groupedProperties = {};
     rows.forEach(row => {
-      const uniqueId = row[0]; // kolom A (no)
+      const uniqueId = row[0]; // kolom A = no property
       const type = row[1];
       const harga = row[2];
       const alamat = row[3];
@@ -47,6 +46,9 @@ export default async function handler(req, res) {
       let finalFotoUrl = null;
       if (match && match[1]) {
         finalFotoUrl = match[1];
+      } else if (rawFotoCell.startsWith("http")) {
+        // kalau bukan formula =IMAGE tapi langsung URL
+        finalFotoUrl = rawFotoCell;
       }
 
       if (uniqueId) {
@@ -65,20 +67,12 @@ export default async function handler(req, res) {
         }
 
         if (finalFotoUrl) {
-          // DEBUG LOG: cek foto yang masuk
-          console.log("Property ID:", uniqueId, "Foto ditemukan:", finalFotoUrl);
           groupedProperties[uniqueId].foto.push(finalFotoUrl);
         }
       }
     });
 
     const properties = Object.values(groupedProperties);
-
-    // DEBUG LOG: cek hasil akhir properti sebelum dikirim
-    console.log("=== Hasil groupedProperties ===");
-    properties.forEach(p => {
-      console.log("ID:", p.id, "| Jumlah Foto:", p.foto.length, "| Foto:", p.foto);
-    });
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     res.status(200).json(properties);
