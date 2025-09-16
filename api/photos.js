@@ -100,6 +100,15 @@ export default async function handler(req, res) {
       return res.status(200).json(properties);
     }
 
+    // Tambahkan di sebelum res.setHeader
+    if (req.query.refresh === "1") {
+      console.log("Manual refresh requested, bypassing cache...");
+      res.setHeader("Cache-Control", "no-store");
+    } else {
+      res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate");
+    }
+
+
     // Default: tetap pakai cache 5 menit
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     res.status(200).json(properties);
