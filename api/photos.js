@@ -48,6 +48,8 @@ export default async function handler(req, res) {
         const kamar = row[5];
         const kamar_mandi = row[6];
         const link = row[7];
+        const status = row[10] || ""; // Kolom K (index 10)
+
 
         groupedProperties[lastUniqueId] = {
           id: lastUniqueId,
@@ -58,6 +60,7 @@ export default async function handler(req, res) {
           kamar,
           kamar_mandi,
           link,
+          status,
           foto: []
         };
       }
