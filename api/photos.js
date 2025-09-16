@@ -94,6 +94,13 @@ export default async function handler(req, res) {
       });
     });
 
+    // ✅ Tambahan: manual refresh
+    if (req.query.refresh === "1") {
+      console.log("Manual refresh requested, bypassing cache headers.");
+      return res.status(200).json(properties);
+    }
+
+    // Default: tetap pakai cache 5 menit
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     res.status(200).json(properties);
 
