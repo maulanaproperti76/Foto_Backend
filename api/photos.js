@@ -3,16 +3,23 @@ import { google } from 'googleapis';
 export default async function handler(req, res) {
   try {
     console.log('Request received for /api/photos');
-    const GOOGLE_CREDENTIALS = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+
+    // Perbaiki parsing GOOGLE_CREDENTIALS agar \n tidak error
+    const GOOGLE_CREDENTIALS = JSON.parse(
+      process.env.GOOGLE_CREDENTIALS.replace(/\\n/g, '\n')
+    );
+
     const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ';
-    const GOOGLE_DRIVE_FOLDER_ID = '1cusUQEcW8cutW56N94M01e8UxDY7MzhN'; // PASTIKAN ID INI SUDAH BENAR
+    const GOOGLE_DRIVE_FOLDER_ID = '1cusUQEcW8cutW56N94M01e8UxDY7MzhN'; // Folder utama
 
     const jwtClient = new google.auth.JWT(
       GOOGLE_CREDENTIALS.client_email,
       null,
       GOOGLE_CREDENTIALS.private_key,
-      // Tambahkan scope drive.readonly
-      ['https://www.googleapis.com/auth/spreadsheets.readonly', 'https://www.googleapis.com/auth/drive.readonly'] 
+      [
+        'https://www.googleapis.com/auth/spreadsheets.readonly',
+        'https://www.googleapis.com/auth/drive.readonly'
+      ]
     );
 
     await jwtClient.authorize();
@@ -41,26 +48,28 @@ export default async function handler(req, res) {
       q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
       fields: 'files(id, name)'
     });
-    
+
     const propertyFolders = driveFoldersResponse.data.files || [];
     console.log(`Found ${propertyFolders.length} property folders.`);
-    
+
     // 3. Ambil semua foto dari setiap folder properti
     const photoMap = new Map();
     for (const folder of propertyFolders) {
       const match = folder.name.match(/Properti (\d+)/);
       if (match) {
-        // ID dari folder Drive adalah string
-        const propertyId = match[1]; 
+        const propertyId = match[1];
         console.log(`Fetching photos for property ID: ${propertyId}...`);
+
         const photosResponse = await drive.files.list({
           q: `'${folder.id}' in parents and mimeType contains 'image'`,
           fields: 'files(id)'
         });
-        
+
         const photos = photosResponse.data.files || [];
-        const photoUrls = photos.map(photo => `https://drive.google.com/uc?id=${photo.id}`);
-        
+        const photoUrls = photos.map(
+          photo => `https://drive.google.com/thumbnail?id=${photo.id}&sz=w1000`
+        );
+
         if (photoUrls.length > 0) {
           photoMap.set(propertyId, photoUrls);
           console.log(`Found ${photoUrls.length} photos for property #${propertyId}.`);
@@ -76,8 +85,7 @@ export default async function handler(req, res) {
     let lastUniqueId = null;
 
     rows.forEach((row) => {
-      // Ubah ID dari Sheets menjadi string untuk mencocokkan
-      const currentUniqueId = String(row[0]); 
+      const currentUniqueId = String(row[0]);
 
       if (currentUniqueId && !groupedProperties[currentUniqueId]) {
         lastUniqueId = currentUniqueId;
@@ -91,7 +99,7 @@ export default async function handler(req, res) {
           kamar_mandi: row[6] || null,
           link: row[7] || null,
           status: row[10] || "",
-          foto: photoMap.get(lastUniqueId) || [] // Ambil foto dari map
+          foto: photoMap.get(lastUniqueId) || []
         };
       }
     });
