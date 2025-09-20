@@ -50,7 +50,8 @@ export default async function handler(req, res) {
     for (const folder of propertyFolders) {
       const match = folder.name.match(/Properti (\d+)/);
       if (match) {
-        const propertyId = match[1];
+        // ID dari folder Drive adalah string
+        const propertyId = match[1]; 
         console.log(`Fetching photos for property ID: ${propertyId}...`);
         const photosResponse = await drive.files.list({
           q: `'${folder.id}' in parents and mimeType contains 'image'`,
@@ -75,7 +76,8 @@ export default async function handler(req, res) {
     let lastUniqueId = null;
 
     rows.forEach((row) => {
-      const currentUniqueId = row[0]; // Kolom A
+      // Ubah ID dari Sheets menjadi string untuk mencocokkan
+      const currentUniqueId = String(row[0]); 
 
       if (currentUniqueId && !groupedProperties[currentUniqueId]) {
         lastUniqueId = currentUniqueId;
