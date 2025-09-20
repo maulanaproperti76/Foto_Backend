@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range,
-      valueRenderOption: 'FORMULA'
+      valueRenderOption: 'FORMATTED_VALUE'
     });
 
     const rows = response.data.values;
@@ -69,17 +69,11 @@ export default async function handler(req, res) {
 
       // Kolom I (index 8) = foto
       const rawFotoCell = row[8] || '';
-      const match = rawFotoCell.match(/=IMAGE\("([^"]+)"\)/);
-      let finalFotoUrl = null;
-      if (match && match[1]) {
-        finalFotoUrl = match[1];
-      } else if (rawFotoCell.startsWith("http")) {
-        finalFotoUrl = rawFotoCell;
-      }
-
+      const finalFotoUrl = rawFotoCell.startsWith("http") ? rawFotoCell : null;
+      
       if (finalFotoUrl && lastUniqueId) {
-        groupedProperties[lastUniqueId].foto.push(finalFotoUrl);
-        console.log(`Photo for property ${lastUniqueId} added: ${finalFotoUrl}`);
+          groupedProperties[lastUniqueId].foto.push(finalFotoUrl);
+          console.log(`Photo for property ${lastUniqueId} added: ${finalFotoUrl}`);
       }
     });
 
