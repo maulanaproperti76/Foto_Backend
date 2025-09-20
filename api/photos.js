@@ -4,21 +4,22 @@ export default async function handler(req, res) {
   try {
     console.log('Request received for /api/photos');
 
-    // Perbaiki parsing GOOGLE_CREDENTIALS agar \n tidak error
+    // Ambil credential dari .env dan pastikan private_key rapi
     const GOOGLE_CREDENTIALS = JSON.parse(
       process.env.GOOGLE_CREDENTIALS.replace(/\\n/g, '\n')
     );
 
     const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ';
-    const GOOGLE_DRIVE_FOLDER_ID = '1cusUQEcW8cutW56N94M01e8UxDY7MzhN'; // Folder utama
+    const GOOGLE_DRIVE_FOLDER_ID = '1cusUQEcW8cutW56N94M01e8UxDY7MzhN';
 
+    // Auth pakai service account
     const jwtClient = new google.auth.JWT(
       GOOGLE_CREDENTIALS.client_email,
       null,
       GOOGLE_CREDENTIALS.private_key,
       [
         'https://www.googleapis.com/auth/spreadsheets.readonly',
-        'https://www.googleapis.com/auth/drive.readonly'
+        'https://www.googleapis.com/auth/drive.readonly',
       ]
     );
 
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
     const sheetsResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range,
-      valueRenderOption: 'UNFORMATTED_VALUE'
+      valueRenderOption: 'UNFORMATTED_VALUE',
     });
 
     const rows = sheetsResponse.data.values || [];
@@ -46,7 +47,7 @@ export default async function handler(req, res) {
     console.log('Fetching property folders from Google Drive...');
     const driveFoldersResponse = await drive.files.list({
       q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
-      fields: 'files(id, name)'
+      fields: 'files(id, name)',
     });
 
     const propertyFolders = driveFoldersResponse.data.files || [];
@@ -59,27 +60,24 @@ export default async function handler(req, res) {
       if (match) {
         const propertyId = match[1];
         console.log(`Fetching photos for property ID: ${propertyId}...`);
-
         const photosResponse = await drive.files.list({
-          q: `'${folder.id}' in parents and mimeType contains 'image'`,
-          fields: 'files(id)'
+          q: `'${folder.id}' in parents and mimeType contains 'image/'`,
+          fields: 'files(id)',
         });
 
         const photos = photosResponse.data.files || [];
         const photoUrls = photos.map(
-          photo => `https://drive.google.com/thumbnail?id=${photo.id}&sz=w1000`
+          (photo) => `https://drive.google.com/uc?id=${photo.id}`
         );
 
-        if (photoUrls.length > 0) {
-          photoMap.set(propertyId, photoUrls);
-          console.log(`Found ${photoUrls.length} photos for property #${propertyId}.`);
-        } else {
-          photoMap.set(propertyId, []);
-        }
+        photoMap.set(propertyId, photoUrls);
+        console.log(
+          `Found ${photoUrls.length} photos for property #${propertyId}.`
+        );
       }
     }
 
-    // 4. Gabungkan data sheets dengan data foto
+    // 4. Gabungkan data sheets dengan foto
     console.log(`Processing ${rows.length} rows of data...`);
     const groupedProperties = {};
     let lastUniqueId = null;
@@ -98,26 +96,28 @@ export default async function handler(req, res) {
           kamar: row[5] || null,
           kamar_mandi: row[6] || null,
           link: row[7] || null,
-          status: row[10] || "",
-          foto: photoMap.get(lastUniqueId) || []
+          status: row[10] || '',
+          foto: photoMap.get(lastUniqueId) || [],
         };
       }
     });
 
     const properties = Object.values(groupedProperties);
 
-    console.log('Successfully processed data. Number of properties:', properties.length);
+    console.log(
+      'Successfully processed data. Number of properties:',
+      properties.length
+    );
 
     // Cache headers
-    if (req.query.refresh === "1") {
-      console.log("Manual refresh requested, bypassing cache...");
-      res.setHeader("Cache-Control", "no-store");
+    if (req.query.refresh === '1') {
+      console.log('Manual refresh requested, bypassing cache...');
+      res.setHeader('Cache-Control', 'no-store');
     } else {
-      res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate");
+      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     }
 
     res.status(200).json(properties);
-
   } catch (error) {
     console.error('Error fetching data:', error);
     res.status(500).json({ error: 'Internal Server Error' });
