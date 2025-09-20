@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     console.log('Request received for /api/photos');
     const GOOGLE_CREDENTIALS = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ';
-    const GOOGLE_DRIVE_FOLDER_ID = '1cusUQEcW8cutW56N94M01e8UxDY7MzhN'; // Ganti dengan ID folder utama properti Anda
+    const GOOGLE_DRIVE_FOLDER_ID = '1cusUQEcW8cutW56N94M01e8UxDY7MzhN'; // PASTIKAN ID INI SUDAH BENAR
 
     const jwtClient = new google.auth.JWT(
       GOOGLE_CREDENTIALS.client_email,
@@ -35,46 +35,49 @@ export default async function handler(req, res) {
       return res.status(200).json([]);
     }
 
-    // 2. Ambil daftar foto dari Google Drive
-    console.log('Fetching photos from Google Drive...');
-    const driveResponse = await drive.files.list({
-      q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType contains 'image'`,
-      fields: 'files(id, name, parents)'
+    // 2. Ambil daftar folder properti dari Google Drive
+    console.log('Fetching property folders from Google Drive...');
+    const driveFoldersResponse = await drive.files.list({
+      q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
+      fields: 'files(id, name)'
     });
     
-    const photos = driveResponse.data.files || [];
-    console.log(`Found ${photos.length} photos in Drive.`);
-
-    // Buat map untuk mencocokkan ID folder dengan ID properti
-    const propertyIdMap = {};
-    for (const photo of photos) {
-      const parentFolderId = photo.parents && photo.parents[0];
-      if (parentFolderId) {
-        const folderMetadata = await drive.files.get({
-          fileId: parentFolderId,
-          fields: 'name'
+    const propertyFolders = driveFoldersResponse.data.files || [];
+    console.log(`Found ${propertyFolders.length} property folders.`);
+    
+    // 3. Ambil semua foto dari setiap folder properti
+    const photoMap = new Map();
+    for (const folder of propertyFolders) {
+      const match = folder.name.match(/Properti (\d+)/);
+      if (match) {
+        const propertyId = match[1];
+        console.log(`Fetching photos for property ID: ${propertyId}...`);
+        const photosResponse = await drive.files.list({
+          q: `'${folder.id}' in parents and mimeType contains 'image'`,
+          fields: 'files(id)'
         });
-        const folderName = folderMetadata.data.name;
-        // Ekstrak ID properti dari nama folder (misalnya "Properti 1" -> 1)
-        const match = folderName.match(/Properti (\d+)/);
-        if (match) {
-          const propertyId = match[1];
-          if (!propertyIdMap[propertyId]) {
-            propertyIdMap[propertyId] = [];
-          }
-          propertyIdMap[propertyId].push(`https://drive.google.com/uc?id=${photo.id}`);
+        
+        const photos = photosResponse.data.files || [];
+        const photoUrls = photos.map(photo => `https://drive.google.com/uc?id=${photo.id}`);
+        
+        if (photoUrls.length > 0) {
+          photoMap.set(propertyId, photoUrls);
+          console.log(`Found ${photoUrls.length} photos for property #${propertyId}.`);
+        } else {
+          photoMap.set(propertyId, []);
         }
       }
     }
 
-    // 3. Gabungkan data sheets dengan data foto
+    // 4. Gabungkan data sheets dengan data foto
     console.log(`Processing ${rows.length} rows of data...`);
     const groupedProperties = {};
     let lastUniqueId = null;
 
-    rows.forEach((row, index) => {
+    rows.forEach((row) => {
       const currentUniqueId = row[0]; // Kolom A
-      if (currentUniqueId) {
+
+      if (currentUniqueId && !groupedProperties[currentUniqueId]) {
         lastUniqueId = currentUniqueId;
         groupedProperties[lastUniqueId] = {
           id: lastUniqueId,
@@ -85,8 +88,8 @@ export default async function handler(req, res) {
           kamar: row[5] || null,
           kamar_mandi: row[6] || null,
           link: row[7] || null,
-          status: row[10] || "", // Kolom K
-          foto: propertyIdMap[lastUniqueId] || [] // Ambil foto dari map
+          status: row[10] || "",
+          foto: photoMap.get(lastUniqueId) || [] // Ambil foto dari map
         };
       }
     });
@@ -94,13 +97,6 @@ export default async function handler(req, res) {
     const properties = Object.values(groupedProperties);
 
     console.log('Successfully processed data. Number of properties:', properties.length);
-    properties.forEach((p, i) => {
-      console.log(`Property #${i + 1}:`, {
-        id: p.id,
-        status: p.status,
-        photos: p.foto.length
-      });
-    });
 
     // Cache headers
     if (req.query.refresh === "1") {
