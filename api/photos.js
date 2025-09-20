@@ -11,7 +11,6 @@ export default async function handler(req, res) {
       GOOGLE_CREDENTIALS.client_email,
       null,
       GOOGLE_CREDENTIALS.private_key,
-      // Tambahkan scope drive.readonly
       ['https://www.googleapis.com/auth/spreadsheets.readonly', 'https://www.googleapis.com/auth/drive.readonly'] 
     );
 
@@ -20,7 +19,6 @@ export default async function handler(req, res) {
     const sheets = google.sheets({ version: 'v4', auth: jwtClient });
     const drive = google.drive({ version: 'v3', auth: jwtClient });
 
-    // 1. Ambil data dari Google Sheets
     const range = 'Sheet1!A2:K';
     console.log('Fetching data from Google Sheets...');
     const sheetsResponse = await sheets.spreadsheets.values.get({
@@ -35,7 +33,6 @@ export default async function handler(req, res) {
       return res.status(200).json([]);
     }
 
-    // 2. Ambil daftar folder properti dari Google Drive
     console.log('Fetching property folders from Google Drive...');
     const driveFoldersResponse = await drive.files.list({
       q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
@@ -45,12 +42,10 @@ export default async function handler(req, res) {
     const propertyFolders = driveFoldersResponse.data.files || [];
     console.log(`Found ${propertyFolders.length} property folders.`);
     
-    // 3. Ambil semua foto dari setiap folder properti
     const photoMap = new Map();
     for (const folder of propertyFolders) {
       const match = folder.name.match(/Properti (\d+)/);
       if (match) {
-        // ID dari folder Drive adalah string
         const propertyId = match[1]; 
         console.log(`Fetching photos for property ID: ${propertyId}...`);
         const photosResponse = await drive.files.list({
@@ -59,7 +54,8 @@ export default async function handler(req, res) {
         });
         
         const photos = photosResponse.data.files || [];
-        const photoUrls = photos.map(photo => `https://drive.google.com/uc?id=${photo.id}`);
+        // Gunakan format URL thumbnail
+        const photoUrls = photos.map(photo => `https://drive.google.com/thumbnail?id=${photo.id}`);
         
         if (photoUrls.length > 0) {
           photoMap.set(propertyId, photoUrls);
@@ -70,13 +66,11 @@ export default async function handler(req, res) {
       }
     }
 
-    // 4. Gabungkan data sheets dengan data foto
     console.log(`Processing ${rows.length} rows of data...`);
     const groupedProperties = {};
     let lastUniqueId = null;
 
     rows.forEach((row) => {
-      // Ubah ID dari Sheets menjadi string untuk mencocokkan
       const currentUniqueId = String(row[0]); 
 
       if (currentUniqueId && !groupedProperties[currentUniqueId]) {
@@ -91,7 +85,7 @@ export default async function handler(req, res) {
           kamar_mandi: row[6] || null,
           link: row[7] || null,
           status: row[10] || "",
-          foto: photoMap.get(lastUniqueId) || [] // Ambil foto dari map
+          foto: photoMap.get(lastUniqueId) || []
         };
       }
     });
@@ -100,7 +94,6 @@ export default async function handler(req, res) {
 
     console.log('Successfully processed data. Number of properties:', properties.length);
 
-    // Cache headers
     if (req.query.refresh === "1") {
       console.log("Manual refresh requested, bypassing cache...");
       res.setHeader("Cache-Control", "no-store");
