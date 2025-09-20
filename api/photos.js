@@ -3,10 +3,7 @@ import { google } from 'googleapis';
 export default async function handler(req, res) {
   try {
     console.log('Request received for /api/photos');
-    const GOOGLE_CREDENTIALS = JSON.parse(
-      process.env.GOOGLE_CREDENTIALS.replace(/\\n/g, '\n')
-    );
-
+    const GOOGLE_CREDENTIALS = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     const SPREADSHEET_ID = '1NadxFspxUmz8sdIpqmwCyjCKGfmMTpFCOYhErnbxZJQ';
     const GOOGLE_DRIVE_FOLDER_ID = '1cusUQEcW8cutW56N94M01e8UxDY7MzhN'; // PASTIKAN ID INI SUDAH BENAR
 
@@ -14,13 +11,9 @@ export default async function handler(req, res) {
       GOOGLE_CREDENTIALS.client_email,
       null,
       GOOGLE_CREDENTIALS.private_key,
-      [
-        'https://www.googleapis.com/auth/spreadsheets.readonly',
-        'https://www.googleapis.com/auth/drive.readonly',
-        'https://www.googleapis.com/auth/drive.metadata.readonly'
-      ]
+      // Tambahkan scope drive.readonly
+      ['https://www.googleapis.com/auth/spreadsheets.readonly', 'https://www.googleapis.com/auth/drive.readonly'] 
     );
-
 
     await jwtClient.authorize();
 
