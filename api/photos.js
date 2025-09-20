@@ -54,8 +54,8 @@ export default async function handler(req, res) {
         });
         
         const photos = photosResponse.data.files || [];
-        // Gunakan format URL thumbnail
-        const photoUrls = photos.map(photo => `https://drive.google.com/thumbnail?id=${photo.id}`);
+        // Gunakan format URL thumbnail dengan resolusi lebih tinggi
+        const photoUrls = photos.map(photo => `https://drive.google.com/thumbnail?id=${photo.id}&sz=w640-h480`);
         
         if (photoUrls.length > 0) {
           photoMap.set(propertyId, photoUrls);
