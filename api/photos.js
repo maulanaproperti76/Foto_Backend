@@ -73,13 +73,12 @@ export default async function handler(req, res) {
     const groupedProperties = {};
 
     rows.forEach((row) => {
-      const currentUniqueId = String(row[0]);
-      const isMainEntry = row[1] !== null && row[1].trim() !== "";
-    
-      // Jika ini adalah entri utama (punya tipe), buat properti baru atau timpa yang sudah ada
-      if (currentUniqueId && isMainEntry) {
-        groupedProperties[currentUniqueId] = {
-          id: currentUniqueId,
+      const currentUniqueId = String(row[0]); 
+
+      if (currentUniqueId && !groupedProperties[currentUniqueId]) {
+        lastUniqueId = currentUniqueId;
+        groupedProperties[lastUniqueId] = {
+          id: lastUniqueId,
           type: row[1] || null,
           harga: row[2] || null,
           alamat: row[3] || null,
@@ -88,14 +87,8 @@ export default async function handler(req, res) {
           kamar_mandi: row[6] || null,
           link: row[7] || null,
           status: row[10] || "",
-          foto: photoMap.get(currentUniqueId) || []
+          foto: photoMap.get(lastUniqueId) || []
         };
-      } else if (currentUniqueId && groupedProperties[currentUniqueId]) {
-        // Jika ini adalah baris tambahan (foto) dan properti sudah ada, tambahkan foto ke array foto yang sudah ada
-        const photosToAdd = photoMap.get(currentUniqueId);
-        if (photosToAdd && photosToAdd.length > 0) {
-          groupedProperties[currentUniqueId].foto.push(...photosToAdd);
-        }
       }
     });
 
