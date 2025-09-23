@@ -68,22 +68,16 @@ export default async function handler(req, res) {
 
     console.log(`Processing ${rows.length} rows of data...`);
     const groupedProperties = {};
+    let lastUniqueId = null;
 
     rows.forEach((row) => {
-      const currentUniqueId = String(row[0]);
-      const typeValue = row[1];
-      const fotoValue = row[8]; // Kolom I untuk tautan foto di Apps Script
+      const currentUniqueId = String(row[0]); 
 
-      if (!currentUniqueId) {
-        // Abaikan baris kosong
-        return;
-      }
-
-      // Ini adalah baris utama jika kolom Type (B) tidak kosong
-      if (typeValue && typeValue.toString().trim() !== "") {
-        groupedProperties[currentUniqueId] = {
-          id: currentUniqueId,
-          type: typeValue || null,
+      if (currentUniqueId && !groupedProperties[currentUniqueId]) {
+        lastUniqueId = currentUniqueId;
+        groupedProperties[lastUniqueId] = {
+          id: lastUniqueId,
+          type: row[1] || null,
           harga: row[2] || null,
           alamat: row[3] || null,
           deskripsi: row[4] || null,
@@ -91,12 +85,8 @@ export default async function handler(req, res) {
           kamar_mandi: row[6] || null,
           link: row[7] || null,
           status: row[10] || "",
-          foto: fotoValue ? [fotoValue] : []
+          foto: photoMap.get(lastUniqueId) || []
         };
-      } else if (groupedProperties[currentUniqueId] && fotoValue) {
-        // Ini adalah baris tambahan (foto)
-        // Tambahkan foto ke array properti yang sudah ada
-        groupedProperties[currentUniqueId].foto.push(fotoValue);
       }
     });
 
