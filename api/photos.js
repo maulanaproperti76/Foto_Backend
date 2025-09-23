@@ -70,8 +70,6 @@ export default async function handler(req, res) {
     const groupedProperties = {};
     let lastUniqueId = null;
 
-    const groupedProperties = {};
-
     rows.forEach((row) => {
       const currentUniqueId = String(row[0]); 
 
